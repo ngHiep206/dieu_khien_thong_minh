@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Robot Arm · Conveyor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#050a12;--card:#0a1524;--line:#1a2b45;--tx:#dce6f5;--mut:#7385a3;--ok:#2de2c6;--warn:#f5b13d;--bad:#ff5d73;--blue:#4da3ff}
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--tx);min-height:100vh;
+  background:radial-gradient(1100px 520px at 18% -8%,#0e2740 0,transparent 70%),var(--bg)}
+.wrap{max-width:1250px;margin:0 auto;padding:22px 16px 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#2de2c6,#3aa0ff);display:grid;place-items:center;color:#06202a;font-size:22px;font-weight:700}
+h1{font-size:19px;letter-spacing:.14em;font-weight:700}
+h1 i{color:var(--ok);font-style:normal;margin:0 6px}
+.sub{font-size:12px;color:var(--mut);margin-top:3px}
+.hr{display:flex;gap:10px;align-items:center}
+.conn{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.conn.off .dot{background:var(--bad);box-shadow:0 0 10px var(--bad)}
+.conn small{display:block;color:var(--mut);margin-top:2px}
+.card{background:linear-gradient(180deg,rgba(14,26,44,.92),rgba(8,16,29,.92));border:1px solid var(--line);border-radius:16px;padding:16px}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;font-size:12px;font-weight:700;letter-spacing:.1em;color:#b9c7de;flex-wrap:wrap}
+.hd span.t{display:flex;align-items:center;gap:8px}
+.hd span.t:before{content:"";width:8px;height:8px;border-radius:2px;background:var(--ok);transform:rotate(45deg)}
+.pill{font-size:11px;font-weight:700;letter-spacing:.06em;padding:5px 11px;border-radius:999px;border:1px solid}
+.pill.ok{color:var(--ok);border-color:#1f6f63;background:rgba(45,226,198,.08)}
+.pill.warn{color:var(--warn);border-color:#7a5a1c;background:rgba(245,177,61,.08)}
+.pill.bad{color:var(--bad);border-color:#7d2a3a;background:rgba(255,93,115,.08)}
+.pill.mut{color:var(--mut);border-color:var(--line)}
+.scene{margin-bottom:16px}
+.stage{position:relative;height:430px;border-radius:12px;overflow:hidden;border:1px solid #14243b;background:radial-gradient(700px 320px at 50% 75%,#0c2236,#060e1a);touch-action:none}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.ov-title{position:absolute;left:14px;top:12px;pointer-events:none}
+.ov-title b{display:block;color:var(--ok);font-size:15px}
+.ov-title small{color:var(--mut);font-size:11px}
+.steps{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:5px;width:112px;pointer-events:none}
+.steps div{font-size:10px;color:#5d6f8c;padding:4px 8px;border-radius:6px;border:1px solid #16263e;background:rgba(8,16,29,.7)}
+.steps div.done{color:#8fb3a9}
+.steps div.now{color:#06202a;background:var(--ok);border-color:var(--ok);font-weight:700}
+.legend{position:absolute;left:14px;bottom:10px;display:flex;gap:12px;font-size:10px;color:var(--mut);pointer-events:none;flex-wrap:wrap}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.hint{position:absolute;right:12px;bottom:10px;font-size:10px;color:#4c5f7d;pointer-events:none}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
+.g2{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+@media(max-width:1000px){.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+@media(max-width:600px){.g4{grid-template-columns:1fr}.stage{height:330px}.steps{display:none}}
+.mut{color:var(--mut)}.small{font-size:11px}
+.big{font-size:44px;font-weight:700;line-height:1}
+.big small{font-size:14px;color:var(--mut);font-weight:500;margin-left:6px}
+.bar{position:relative;height:6px;border-radius:4px;background:#14243b;margin:12px 0 6px}
+.bar b{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,var(--ok),var(--warn));width:0}
+.bar u{position:absolute;top:-4px;bottom:-4px;width:2px;background:#8aa0c2}
+.scale{display:flex;justify-content:space-between;font-size:10px;color:var(--mut)}
+.row{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#b9c7de}
+.row em{font-style:normal;color:var(--ok)}
+input[type=range]{width:100%;height:4px;border-radius:3px;appearance:none;-webkit-appearance:none;background:#1b4f55;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ok);border:0;box-shadow:0 0 0 4px rgba(45,226,198,.15)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--ok);border:0}
+input[type=range]:disabled{opacity:.4}
+.btns{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+button{font:inherit;font-size:13px;font-weight:600;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:#101f35;color:var(--tx)}
+button:hover:not(:disabled){border-color:#2c4a73}
+button.go{background:var(--ok);color:#06202a;border-color:var(--ok)}
+button.sm{font-size:11px;padding:5px 10px;border-radius:7px}
+button.on{border-color:var(--ok);color:var(--ok)}
+button:focus-visible,input:focus-visible,.sw:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+.estop{background:#4a111d;border-color:var(--bad);color:#ffd3da;letter-spacing:.06em;padding:10px 18px}
+.estop.resume{background:var(--ok);border-color:var(--ok);color:#06202a}
+.auto{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:6px}
+.sw{position:relative;width:38px;height:22px;border-radius:12px;background:#1a2b45;border:1px solid var(--line);cursor:pointer}
+.sw:after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#8aa0c2;transition:.18s}
+.sw.on{background:#14594f;border-color:var(--ok)}
+.sw.on:after{left:18px;background:var(--ok)}
+.belt-state{font-size:24px;font-weight:700;letter-spacing:.06em;color:#7f93b2}
+.belt-state.run{color:var(--ok)}
+.lm{position:relative;height:110px;border-radius:10px;background:#081322;border:1px solid #13233a;margin-bottom:10px;overflow:hidden}
+.lm .tag{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;color:var(--blue);padding:2px 8px;border:1px solid #2a4f86;border-radius:4px;background:#0c1d36}
+.lm .beam{position:absolute;left:50%;top:30px;height:44px;width:2px;background:#3a2a38}
+.lm.on .beam{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+.lm .obj{position:absolute;left:50%;bottom:26px;width:34px;height:22px;margin-left:-17px;border:1px solid var(--warn);background:rgba(245,177,61,.2);border-radius:3px;display:none}
+.lm.on .obj{display:block}
+.lm .belt{position:absolute;left:10px;right:10px;bottom:10px;height:10px;border-radius:2px;background:repeating-linear-gradient(90deg,#16304a 0 10px,#0e2036 10px 14px)}
+.lm .belt.run{animation:mv .5s linear infinite}
+@keyframes mv{to{background-position:14px 0}}
+@media(prefers-reduced-motion:reduce){.lm .belt.run{animation:none}}
+#rb{width:100%;height:auto;display:block}
+.chips{display:flex;justify-content:center;gap:12px;font-size:10px;color:var(--mut);margin-top:4px}
+.chips b{color:var(--tx)}
+.rtitle{text-align:center;color:var(--ok);font-weight:700;font-size:13px;margin-top:2px}
+.man{margin-bottom:16px}
+.mgrid{display:grid;grid-template-columns:1fr 1.2fr;gap:24px}
+@media(max-width:800px){.mgrid{grid-template-columns:1fr}}
+.srv{margin-bottom:14px}
+.srv label{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.08em;color:#b9c7de;margin-bottom:7px}
+.srv label b{color:var(--ok)}
+.wp{display:grid;grid-template-columns:52px 1fr auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #0f1d31;font-size:12px}
+.wp b{color:var(--ok)}.wp span{color:var(--mut)}.wp span em{color:var(--tx);font-style:normal}
+details.cal{margin-bottom:16px}
+details.cal summary{cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.1em;color:#b9c7de}
+.calg{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:14px}
+.calg label{display:block;font-size:11px;color:var(--mut)}
+.calg input{width:100%;margin-top:4px;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:#081322;color:var(--tx);font:inherit}
+.ht{width:100%;border-collapse:collapse;font-size:12px}
+.ht th{position:sticky;top:0;background:#0d1b2f;text-align:left;font-size:11px;color:var(--mut);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+.ht td{padding:7px 10px;border-bottom:1px solid #0f1d31;font-variant-numeric:tabular-nums}
+.ht .lv{font-weight:700}.ht .L{color:var(--ok)}.ht .H{color:var(--warn)}.ht .E{color:var(--bad)}.ht .T{color:var(--blue)}
+.log{height:240px;overflow:auto;font-size:12px;font-family:Consolas,ui-monospace,monospace}
+.log div{display:flex;gap:10px;padding:5px 2px;border-bottom:1px solid #0f1d31}
+.log time{color:#58708f;flex:none}
+.log .o{color:var(--ok)}.log .w{color:var(--warn)}.log .e{color:var(--bad)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.stat{padding:12px;border:1px solid #14243b;border-radius:10px;background:#081322}
+.stat b{display:block;font-size:26px;line-height:1.1}
+.stat span{font-size:11px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="logo">◈</div>
+    <div><h1>ROBOT ARM<i>·</i>CONVEYOR</h1><div class="sub">Giám sát và điều khiển hệ thống phân loại sản phẩm</div></div>
+  </div>
+  <div class="hr">
+    <button class="estop" id="estop">⏻ DỪNG KHẨN</button>
+    <div class="conn off" id="conn"><span class="dot"></span><div><span id="connT">Đang kết nối…</span><small id="ip">—</small></div></div>
+  </div>
+</header>
+
+<section class="card scene">
+  <div class="hd">
+    <span class="t">MÔ PHỎNG 3D · QUY TRÌNH GẮP</span>
+    <div class="tools">
+      <button class="sm" data-view="0">Mặc định</button><button class="sm" data-view="1">Trên xuống</button>
+      <button class="sm" data-view="2">Cạnh</button><button class="sm" data-view="3">Tay máy</button>
+      <button class="sm" id="zin" aria-label="Phóng to">＋</button><button class="sm" id="zout" aria-label="Thu nhỏ">－</button>
+      <span class="pill ok" id="sceneBadge">SẴN SÀNG</span>
+    </div>
+  </div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov-title"><b id="stTitle">Chờ sản phẩm</b><small id="stSub">—</small></div>
+    <div class="steps" id="steps"></div>
+    <div class="legend">
+      <span><i style="background:#2de2c6"></i>HC-SR04</span><span><i style="background:#4ade80"></i>LM393</span>
+      <span><i style="background:#8a9a5b"></i>Tay máy</span><span><i style="background:#e8eef7"></i>Sản phẩm</span>
+    </div>
+    <div class="hint">Kéo để xoay · cuộn để zoom · nhấp đúp để đặt lại</div>
+  </div>
+</section>
+
+<div class="g4">
+  <section class="card">
+    <div class="hd"><span class="t">LM393 · QUANG</span><span class="pill mut" id="lmPill">TRỐNG</span></div>
+    <div class="lm" id="lm"><span class="tag">HC-SR04 ↓</span><i class="beam"></i><b class="obj"></b><div class="belt" id="lmBelt"></div></div>
+    <div class="small mut" id="lmTxt">Chưa có sản phẩm</div>
+    <div class="row">MỨC KÍCH HOẠT</div>
+    <div class="btns" style="margin-top:0"><button class="sm" id="lvl0">Thấp (0)</button><button class="sm" id="lvl1">Cao (1)</button></div>
+    <div class="small mut" id="lmRaw">Nếu đèn báo ngược, đổi mức kích hoạt.</div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><span class="t">HC-SR04 · SIÊU ÂM</span><span class="pill mut" id="usPill">—</span></div>
+    <div class="small mut" style="margin-bottom:4px">Chiều cao sản phẩm</div>
+    <div class="big"><span id="hVal">--</span><small>cm</small></div>
+    <div class="small mut" style="margin-top:6px">Khoảng cách TB 9 lần <b id="dVal" style="color:var(--tx)">--</b> cm · đáy <span id="baseVal">16.52</span> cm</div>
+    <div class="bar"><b id="hBar"></b><u id="thrMark"></u></div>
+    <div class="scale"><span>0</span><span id="thrScale">ngưỡng</span><span>20</span></div>
+    <div class="row">NGƯỠNG PHÂN LOẠI <em id="thrVal">6.0 cm</em></div>
+    <input type="range" id="thr" min="1" max="20" step="0.5" value="6" aria-label="Ngưỡng phân loại">
+    <div class="btns"><button class="sm" id="bMeasure">Đo thử</button><button class="sm" id="bCalib">Hiệu chuẩn đáy</button></div>
+    <div class="small mut" id="measAt">Chưa có lần đo nào. Mỗi sản phẩm đo 9 lần, lọc nhiễu rồi lấy trung bình rồi dừng đo; giá trị giữ nguyên đến lần sau.</div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><span class="t">BĂNG TẢI</span><span class="pill mut" id="beltPill">ĐÃ DỪNG</span></div>
+    <div class="belt-state" id="beltState">ĐÃ DỪNG</div>
+    <div class="btns"><button class="go" id="bRun">▶ Chạy</button><button id="bStop">■ Dừng</button><button id="bDir">⇄ Đảo chiều</button></div>
+    <div class="auto"><span class="sw" id="sw" role="switch" tabindex="0" aria-checked="false" aria-label="Chế độ tự động"></span>Chế độ tự động</div>
+    <div class="small mut" id="dirTxt" style="margin-bottom:4px">Chiều: thuận</div>
+    <div class="row">TỐC ĐỘ BĂNG TẢI <em id="spdVal">333 Hz</em></div>
+    <input type="range" id="spd" min="50" max="800" step="10" value="333" aria-label="Tốc độ băng tải">
+    <div class="btns" style="margin-bottom:0"><button class="sm" data-spd="150">Chậm</button><button class="sm" data-spd="333">Vừa</button><button class="sm" data-spd="600">Nhanh</button></div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><span class="t">CÁNH TAY ROBOT</span><span class="pill ok" id="rbPill">SẴN SÀNG</span></div>
+    <canvas id="rb" width="280" height="150"></canvas>
+    <div class="rtitle" id="rbTitle">Chờ sản phẩm</div>
+    <div class="chips"><span>BASE <b id="a0">90°</b></span><span>VAI <b id="a1">30°</b></span><span>KHUỶU <b id="a2">60°</b></span><span>KẸP <b id="a3">80°</b></span></div>
+    <div class="btns" style="justify-content:center"><button id="bPick">Chạy thử gắp</button><button id="bHome">Về HOME</button></div>
+  </section>
+</div>
+
+<section class="card man">
+  <div class="hd"><span class="t">LỊCH SỬ ĐO CHIỀU CAO</span>
+    <div class="tools"><button class="sm" id="hClr">Xóa</button><button class="sm" id="hDl">Tải CSV</button><span class="pill mut" id="hCnt">0 lần đo</span></div></div>
+  <div style="overflow:auto;max-height:300px">
+    <table class="ht"><thead><tr><th>#</th><th>Thời điểm</th><th>Khoảng cách TB (cm)</th><th>Chiều cao (cm)</th><th>Ngưỡng (cm)</th><th>Phân mức</th></tr></thead><tbody id="hBody"></tbody></table>
+  </div>
+</section>
+
+<section class="card man">
+  <div class="hd"><span class="t">ĐIỀU KHIỂN TAY MÁY THỦ CÔNG</span><span class="pill mut" id="manPill">—</span></div>
+  <div class="mgrid">
+    <div>
+      <div class="srv"><label>BASE <b id="v0">90°</b></label><input type="range" id="sv0" min="0" max="180"></div>
+      <div class="srv"><label>VAI <b id="v1">30°</b></label><input type="range" id="sv1" min="0" max="180"></div>
+      <div class="srv"><label>KHUỶU <b id="v2">60°</b></label><input type="range" id="sv2" min="0" max="180"></div>
+      <div class="srv"><label>KẸP <b id="v3">80°</b></label><input type="range" id="sv3" min="0" max="180"></div>
+      <div class="btns" style="margin-top:0"><button class="sm" id="gOpen">Mở kẹp</button><button class="sm" id="gClose">Đóng kẹp</button></div>
+      <div class="row">TỐC ĐỘ SERVO <em id="sdVal">20 ms/độ</em></div>
+      <input type="range" id="sd" min="5" max="60" step="1" value="20" aria-label="Tốc độ servo">
+      <div class="scale" style="margin-top:6px"><span>Nhanh</span><span>Chậm</span></div>
+    </div>
+    <div>
+      <div class="small mut" style="margin-bottom:6px">Điểm hành trình (Base · Vai · Khuỷu · Kẹp). “Lưu” ghi vị trí hiện tại của tay máy vào điểm đó và nhớ cả khi mất điện.</div>
+      <div id="wpList"></div>
+    </div>
+  </div>
+</section>
+
+<details class="cal card">
+  <summary>HIỆU CHỈNH MÔ HÌNH 3D (nhập kích thước thật của tay máy)</summary>
+  <div class="calg" id="calg"></div>
+  <div class="btns"><button class="sm" id="calReset">Đặt lại mặc định</button></div>
+  <div class="small mut">Chỉ ảnh hưởng hình mô phỏng, không gửi xuống ESP32. Đơn vị cm; góc độ.</div>
+</details>
+
+<div class="g2">
+  <section class="card">
+    <div class="hd"><span class="t">NHẬT KÝ HỆ THỐNG</span>
+      <div class="tools"><button class="sm" id="logClr">Xóa</button><button class="sm" id="logDl">Tải về</button><span class="pill mut" id="upT">00:00</span></div></div>
+    <div class="log" id="log" aria-live="polite"></div>
+  </section>
+  <section class="card">
+    <div class="hd"><span class="t">THỐNG KÊ CA LÀM VIỆC</span><div class="tools"><button class="sm" id="stRst">Đặt lại</button><span class="pill mut">REAL TIME</span></div></div>
+    <div class="stats">
+      <div class="stat"><b id="sTotal">0</b><span>Tổng sản phẩm</span></div>
+      <div class="stat"><b id="sHigh" style="color:var(--warn)">0</b><span>Sản phẩm cao (gắp)</span></div>
+      <div class="stat"><b id="sLow" style="color:var(--ok)">0</b><span>Sản phẩm thấp</span></div>
+      <div class="stat"><b id="sErr" style="color:var(--bad)">0</b><span>Lỗi HC-SR04</span></div>
+      <div class="stat"><b id="sRate">0%</b><span>Tỷ lệ gắp</span></div>
+      <div class="stat"><b id="sUp" style="font-size:20px;padding-top:5px">00:00:00</b><span>Thời gian chạy</span></div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const D2R=Math.PI/180;
+const STEPS=["Tiếp cận","Hạ kẹp","Kẹp","Nâng","Quay","Thả","Về HOME"];
+const WPN={HOME:"Nghỉ",P1:"Tiếp cận",P2:"Hạ kẹp",P3:"Kẹp",P4:"Nâng · Quay",P5:"Thả"};
+let S=null,lastId=0,lastH=0,hist=[],histDirty=false,fails=0,polling=false,logs=[],A=[90,30,60,80];
+
+/* ======================= Cấu hình mô hình (cm) ======================= */
+const CDEF={l1:11,l2:11,hs:10,bz:-21.7,sOff:0,eOff:0,bOff:0,cmHz:0.02};
+const CLAB={l1:"Vai → khuỷu (cm)",l2:"Khuỷu → đầu kẹp (cm)",hs:"Chiều cao trục vai (cm)",bz:"Vị trí chân tay máy so với điểm gắp (cm)",
+  sOff:"Lệch góc vai (°)",eOff:"Lệch góc khuỷu (°)",bOff:"Lệch góc base (°)",cmHz:"Tốc độ băng tải (cm/s mỗi Hz)"};
+let C=Object.assign({},CDEF);
+try{Object.assign(C,JSON.parse(localStorage.getItem("robotCfg")||"{}"))}catch(e){}
+$("calg").innerHTML=Object.keys(CDEF).map(k=>`<label>${CLAB[k]}<input type="number" step="any" data-k="${k}" value="${C[k]}"></label>`).join("");
+$("calg").oninput=e=>{const k=e.target.dataset.k;if(!k)return;const v=parseFloat(e.target.value);if(!isNaN(v)){C[k]=v;try{localStorage.setItem("robotCfg",JSON.stringify(C))}catch(_){}}};
+$("calReset").onclick=()=>{C=Object.assign({},CDEF);try{localStorage.removeItem("robotCfg")}catch(e){}document.querySelectorAll("#calg input").forEach(i=>i.value=C[i.dataset.k])};
+// hình học cố định của bệ thí nghiệm
+const BX0=-30,BX1=6,BW=10,BT=8,PW=5,BINW=14,BINH=10;
+
+/* ======================= Gọi API ======================= */
+async function call(path,isPoll){
+  if(isPoll&&polling)return;
+  if(isPoll)polling=true;
+  try{
+    const r=await fetch(path+(path.includes("?")?"&":"?")+"since="+lastId+"&hs="+lastH,{cache:"no-store"});
+    apply(await r.json());fails=0;
+  }catch(e){if(++fails>=3)offline()}
+  if(isPoll)polling=false;
+}
+function apply(j){
+  if(j.lid<lastId){lastId=0;logs=[];return}
+  if(j.hid<lastH){lastH=0;hist=[];return}
+  if((j.hist||[]).length||j.hid!==lastH){(j.hist||[]).forEach(x=>hist.unshift(x));if(hist.length>50)hist.length=50;lastH=j.hid;histDirty=true}
+  (j.log||[]).forEach(l=>logs.unshift(l));
+  if(logs.length>80)logs.length=80;
+  const nl=lastId!==j.lid;lastId=j.lid;
+  S=j;render(nl);
+}
+function offline(){$("conn").classList.add("off");$("connT").textContent="Mất kết nối";const b=$("sceneBadge");b.className="pill bad";b.textContent="MẤT KẾT NỐI"}
+setInterval(()=>call("/api/state",true),500);call("/api/state",true);
+
+function throttle(fn,ms){let t=0,h=null,last;return(...a)=>{last=a;const n=Date.now();clearTimeout(h);
+  if(n-t>=ms){t=n;fn(...a)}else h=setTimeout(()=>{t=Date.now();fn(...last)},ms)}}
+
+/* ======================= Điều khiển ======================= */
+$("estop").onclick=()=>call(S&&S.estop?"/api/resume":"/api/estop");
+$("bRun").onclick=()=>call("/api/belt?run=1");
+$("bStop").onclick=()=>call("/api/belt?run=0");
+$("bDir").onclick=()=>call("/api/dir?v="+(S&&S.dir?0:1));
+$("bPick").onclick=()=>call("/api/pick");
+$("bHome").onclick=()=>call("/api/goto?p=HOME");
+$("bMeasure").onclick=()=>call("/api/measure");
+$("bCalib").onclick=()=>{if(confirm("Băng tải đang TRỐNG? Hệ thống sẽ lấy khoảng cách hiện tại làm mặt đáy."))call("/api/calib")};
+$("lvl0").onclick=()=>call("/api/level?v=0");$("lvl1").onclick=()=>call("/api/level?v=1");
+const toggleAuto=()=>call("/api/auto?on="+(S&&S.auto?0:1));
+$("sw").onclick=toggleAuto;
+$("sw").onkeydown=e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleAuto()}};
+$("spd").oninput=e=>$("spdVal").textContent=e.target.value+" Hz";
+$("spd").onchange=e=>call("/api/speed?hz="+e.target.value);
+document.querySelectorAll("[data-spd]").forEach(b=>b.onclick=()=>call("/api/speed?hz="+b.dataset.spd));
+$("thr").oninput=e=>{$("thrVal").textContent=(+e.target.value).toFixed(1)+" cm";markThr(+e.target.value)};
+$("thr").onchange=e=>call("/api/thr?cm="+e.target.value);
+function markThr(v){$("thrMark").style.left=(v/20*100)+"%";$("thrScale").textContent=v.toFixed(0)+" cm · ngưỡng"}
+$("sd").oninput=e=>$("sdVal").textContent=e.target.value+" ms/độ";
+$("sd").onchange=e=>call("/api/sdelay?ms="+e.target.value);
+const jog=throttle((i,a)=>call(`/api/servo?i=${i}&a=${a}`),80);
+for(let i=0;i<4;i++){const el=$("sv"+i);el.oninput=()=>{$("v"+i).textContent=el.value+"°";jog(i,el.value)};el.onchange=()=>call(`/api/servo?i=${i}&a=${el.value}`)}
+$("gOpen").onclick=()=>S&&call(`/api/servo?i=3&a=${S.wp.P5[3]}`);
+$("gClose").onclick=()=>S&&call(`/api/servo?i=3&a=${S.wp.P3[3]}`);
+$("wpList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=b.dataset.p;
+  if(b.dataset.a==="go")call("/api/goto?p="+p);
+  else if(b.dataset.a==="save"&&confirm(`Lưu vị trí hiện tại của tay máy làm ${p}?`))call("/api/savewp?p="+p)};
+$("stRst").onclick=()=>call("/api/resetstats");
+$("logClr").onclick=()=>{logs=[];$("log").innerHTML="";call("/api/clearlog")};
+$("logDl").onclick=()=>{const t=logs.slice().reverse().map(l=>hms(l[1])+"  "+l[2]).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/plain"}));a.download="nhat-ky.txt";a.click()};
+
+/* ======================= Hiển thị ======================= */
+const f2=n=>String(n).padStart(2,"0");
+const mmss=t=>f2(Math.floor(t/60)%60)+":"+f2(t%60);
+const hms=t=>f2(Math.floor(t/3600))+":"+mmss(t);
+const LV={L:"Thấp · cho qua",H:"Cao · gắp",E:"Lỗi đọc",T:"Đo thử"};
+function renderHist(){
+  $("hCnt").textContent=hist.length+" lần đo";
+  const n=lastH;
+  $("hBody").innerHTML=hist.length?hist.map(x=>`<tr><td>${x[0]}</td><td>${hms(x[1])}</td><td>${x[2]===null?"—":x[2].toFixed(1)}</td><td><b>${x[3]===null?"—":x[3].toFixed(1)}</b></td><td>${x[4].toFixed(1)}</td><td class="lv ${x[5]}">${LV[x[5]]}</td></tr>`).join(""):`<tr><td colspan="6" class="mut">Chưa có lần đo nào.</td></tr>`;
+}
+$("hClr").onclick=()=>{hist=[];renderHist();call("/api/clearhist")};
+$("hDl").onclick=()=>{const t="STT,Thoi diem,Khoang cach (cm),Chieu cao (cm),Nguong (cm),Phan muc\n"+hist.slice().reverse().map(x=>[x[0],hms(x[1]),x[2],x[3],x[4],LV[x[5]]].join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download="lich-su-do.csv";a.click()};
+renderHist();
+const esc=t=>t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+$("steps").innerHTML=STEPS.map((s,i)=>`<div id="s${i+1}">${i+1} · ${s}</div>`).join("");
+let wpKey="";
+function render(newLog){
+  const s=S,lock=s.busy||s.estop;
+  $("conn").classList.remove("off");$("connT").textContent="Đã kết nối";$("ip").textContent=s.ip;
+  const es=$("estop");es.textContent=s.estop?"▶ TIẾP TỤC":"⏻ DỪNG KHẨN";es.classList.toggle("resume",s.estop);
+
+  $("lm").classList.toggle("on",s.obj);$("lmBelt").classList.toggle("run",s.belt);
+  const lp=$("lmPill");lp.className="pill "+(s.obj?"bad":"mut");lp.textContent=s.obj?"CÓ VẬT":"TRỐNG";
+  $("lmTxt").textContent=s.obj?(s.belt?"Có sản phẩm · đang xác nhận":"Có sản phẩm · băng tải dừng để đo"):"Chưa có sản phẩm";
+  $("lvl0").classList.toggle("on",!s.lvl);$("lvl1").classList.toggle("on",!!s.lvl);
+
+  const lastM=hist[0],up=$("usPill");
+  if(s.d!==null){up.className="pill ok";up.textContent="ĐÃ ĐO"}
+  else if(lastM&&lastM[5]==="E"){up.className="pill bad";up.textContent="LỖI ĐỌC"}
+  else{up.className="pill mut";up.textContent="CHƯA ĐO"}
+  if(lastM&&s.d!==null)$("measAt").textContent="Đo lúc "+hms(lastM[1])+" · TB 9 lần đã lọc nhiễu, đã dừng đo · "+(s.h>s.thr?"CAO → gắp":"THẤP → cho qua");
+  $("hVal").textContent=s.h===null?"--":s.h.toFixed(1);$("dVal").textContent=s.d===null?"--":s.d.toFixed(2);
+  $("baseVal").textContent=s.base.toFixed(2);$("hBar").style.width=Math.min(100,(s.h||0)/20*100)+"%";
+  if(document.activeElement!==$("thr")){$("thr").value=s.thr;$("thrVal").textContent=s.thr.toFixed(1)+" cm";markThr(s.thr)}
+
+  const bs=$("beltState");bs.textContent=s.belt?"ĐANG CHẠY":"ĐÃ DỪNG";bs.className="belt-state"+(s.belt?" run":"");
+  const bp=$("beltPill");bp.className="pill "+(s.belt?"ok":"warn");bp.textContent=s.belt?"ĐANG CHẠY":"ĐÃ DỪNG";
+  const sw=$("sw");sw.classList.toggle("on",s.auto);sw.setAttribute("aria-checked",s.auto);
+  $("dirTxt").textContent="Chiều: "+(s.dir?"thuận":"ngược");
+  const spd=$("spd");spd.min=s.smin;spd.max=s.smax;
+  if(document.activeElement!==spd){spd.value=s.hz;$("spdVal").textContent=s.hz+" Hz"}
+  $("bRun").disabled=lock;
+
+  const [a0,a1,a2,a3]=s.ang;
+  [a0,a1,a2,a3].forEach((v,i)=>$("a"+i).textContent=v+"°");
+  let title,sub,badge,cls;
+  if(s.estop){title="DỪNG KHẨN CẤP";sub="Đã ngắt băng tải và robot · nhấn Tiếp tục";badge="DỪNG KHẨN";cls="bad"}
+  else if(s.busy){title="Đang gắp · "+(STEPS[s.step-1]||"");sub="Bước "+s.step+"/7"+(s.stg===3?" · chờ nhấc vật khỏi LM393":"");badge="ĐANG GẮP";cls="warn"}
+  else if(s.man){title="Đang di chuyển tay máy";sub="Điều khiển thủ công";badge="THỦ CÔNG";cls="warn"}
+  else if(s.belt){title="Chờ sản phẩm";sub="Băng tải chạy · chờ LM393"+(s.auto?"":" (thủ công)");badge="SẴN SÀNG";cls="ok"}
+  else if(s.obj){title="Có sản phẩm";sub="Băng tải dừng · đang đo chiều cao";badge="SẴN SÀNG";cls="ok"}
+  else{title="Băng tải dừng";sub=s.auto?"Nhấn Chạy để tiếp tục":"Chế độ thủ công";badge="SẴN SÀNG";cls="ok"}
+  if(s.pend)sub+=" · 1 sản phẩm cao đang chờ";
+  $("stTitle").textContent=title;$("stSub").textContent=sub;
+  $("rbTitle").textContent=s.busy?(STEPS[s.step-1]||""):"Chờ sản phẩm";
+  const b=$("sceneBadge");b.className="pill "+cls;b.textContent=badge;
+  const r=$("rbPill");r.className="pill "+cls;r.textContent=badge;
+  $("bPick").disabled=lock||s.man;$("bHome").disabled=lock;
+  for(let i=1;i<=7;i++)$("s"+i).className=s.busy?(i<s.step?"done":i===s.step?"now":""):"";
+
+  // điều khiển thủ công
+  const mp=$("manPill");mp.className="pill "+(lock?"warn":"ok");mp.textContent=s.estop?"KHOÁ · DỪNG KHẨN":s.busy?"KHOÁ · ĐANG GẮP":"SẴN SÀNG";
+  for(let i=0;i<4;i++){const el=$("sv"+i);el.disabled=lock;
+    if(document.activeElement!==el){el.value=s.ang[i];$("v"+i).textContent=s.ang[i]+"°"}}
+  $("gOpen").disabled=lock;$("gClose").disabled=lock;
+  if(document.activeElement!==$("sd")){$("sd").value=s.sd;$("sdVal").textContent=s.sd+" ms/độ"}
+  const k=JSON.stringify(s.wp)+lock;
+  if(k!==wpKey){wpKey=k;
+    $("wpList").innerHTML=Object.keys(WPN).map(p=>`<div class="wp"><b>${p}</b><span>${WPN[p]} · <em>${s.wp[p].join(" · ")}</em></span>
+      <button class="sm" data-a="go" data-p="${p}" ${lock?"disabled":""}>Đi tới</button><button class="sm" data-a="save" data-p="${p}" ${lock?"disabled":""}>Lưu</button></div>`).join("")}
+
+  const st=s.st;$("sTotal").textContent=st.total;$("sHigh").textContent=st.high;$("sLow").textContent=st.low;$("sErr").textContent=st.err;
+  $("sRate").textContent=(st.total?Math.round(st.high/st.total*100):0)+"%";
+  $("sUp").textContent=hms(s.up);$("upT").textContent=mmss(s.up);
+  if(histDirty){histDirty=false;renderHist()}
+  if(newLog)$("log").innerHTML=logs.map(l=>`<div><time>${hms(l[1])}</time><span class="${l[3]}">${esc(l[2])}</span></div>`).join("");
+}
+
+/* ======================= Bộ dựng 3D ======================= */
+const cv=$("cv"),ctx=cv.getContext("2d");
+let W=0,H=0;
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul=(a,k)=>[a[0]*k,a[1]*k,a[2]*k];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+const mid=(a,b)=>mul(add(a,b),.5);
+
+const VIEWS=[{yaw:.55,pitch:.5,dist:118,t:[2,9,-5]},{yaw:0,pitch:1.45,dist:125,t:[2,0,-6]},{yaw:Math.PI/2,pitch:.12,dist:125,t:[2,10,-5]},{yaw:-.5,pitch:.35,dist:70,t:[0,12,-12]}];
+let cam=Object.assign({},VIEWS[0],{t:VIEWS[0].t.slice()});
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{const v=VIEWS[+b.dataset.view];cam=Object.assign({},v,{t:v.t.slice()})});
+$("zin").onclick=()=>cam.dist=Math.max(40,cam.dist*.85);
+$("zout").onclick=()=>cam.dist=Math.min(260,cam.dist/.85);
+cv.addEventListener("wheel",e=>{e.preventDefault();cam.dist=Math.max(40,Math.min(260,cam.dist*(e.deltaY>0?1.08:.92)))},{passive:false});
+cv.addEventListener("dblclick",()=>{const v=VIEWS[0];cam=Object.assign({},v,{t:v.t.slice()})});
+let drag=null;
+cv.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{if(!drag)return;cam.yaw-=(e.clientX-drag.x)*.008;cam.pitch=Math.max(.04,Math.min(1.5,cam.pitch+(e.clientY-drag.y)*.006));drag={x:e.clientX,y:e.clientY}});
+cv.addEventListener("pointerup",()=>drag=null);cv.addEventListener("pointercancel",()=>drag=null);
+
+function fit(){const d=devicePixelRatio||1,r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0)}
+new ResizeObserver(fit).observe(cv);
+
+let camPos,fw,rt,upv,focal;
+function setupCam(){
+  const p=cam.pitch,y=cam.yaw,t=cam.t;
+  camPos=[t[0]+cam.dist*Math.cos(p)*Math.sin(y),t[1]+cam.dist*Math.sin(p),t[2]+cam.dist*Math.cos(p)*Math.cos(y)];
+  fw=norm(sub(t,camPos));rt=norm(cross(fw,[0,1,0]));upv=cross(rt,fw);focal=Math.max(H,W*.45)*1.3;
+}
+function pr(p){const d=sub(p,camPos),z=dot(d,fw);if(z<2)return null;return[W/2+focal*dot(d,rt)/z,H/2-focal*dot(d,upv)/z,z]}
+
+let F=[],LB=[],LN=[];
+const LIGHT=norm([-.35,.85,.45]);
+function face(pts,col,c){
+  let n=norm(cross(sub(pts[1],pts[0]),sub(pts[2],pts[0])));
+  let m=[0,0,0];for(const p of pts)m=add(m,p);m=mul(m,1/pts.length);
+  if(dot(n,sub(m,c))<0)n=mul(n,-1);
+  F.push({p:pts,n,c:col,m});
+}
+const FACES=[[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1]],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],
+  [[-1,-1,-1],[-1,1,-1],[-1,1,1],[-1,-1,1]],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1]],
+  [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1]],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]];
+function obox(c,ux,uy,uz,hx,hy,hz,col){
+  for(const f of FACES)face(f.map(q=>add(add(add(c,mul(ux,q[0]*hx)),mul(uy,q[1]*hy)),mul(uz,q[2]*hz))),col,c);
+}
+const EX=[1,0,0],EY=[0,1,0],EZ=[0,0,1];
+function box(x0,y0,z0,x1,y1,z1,col){obox([(x0+x1)/2,(y0+y1)/2,(z0+z1)/2],EX,EY,EZ,(x1-x0)/2,(y1-y0)/2,(z1-z0)/2,col)}
+function beam(a,b,side,w,h,col){
+  const u=norm(sub(b,a));let s=sub(side,mul(u,dot(side,u)));s=norm(s);const t=cross(u,s);
+  obox(mid(a,b),s,t,u,w/2,h/2,Math.hypot(...sub(b,a))/2,col);
+}
+function cyl(a,b,r,col,n=14){
+  const u=norm(sub(b,a)),h=Math.abs(u[1])<.9?EY:EX,e1=norm(cross(u,h)),e2=cross(u,e1),c0=mid(a,b);
+  const ra=[],rb=[];
+  for(let i=0;i<n;i++){const t=i/n*Math.PI*2,o=add(mul(e1,Math.cos(t)*r),mul(e2,Math.sin(t)*r));ra.push(add(a,o));rb.push(add(b,o))}
+  for(let i=0;i<n;i++){const j=(i+1)%n,m=mid(mid(ra[i],rb[j]),mid(rb[i],ra[j]));
+    const ax=add(a,mul(u,dot(sub(m,a),u)));face([ra[i],ra[j],rb[j],rb[i]],col,ax)}
+  face(ra,col,c0);face(rb,col,c0);
+}
+function line3(a,b,col,w,dash){LN.push({a,b,col,w,dash})}
+function label(t,p,col){LB.push({t,p,col})}
+
+// ---- động học ----
+function kin(a){
+  const az=(a[0]-90+C.bOff)*D2R,t1=(a[1]+C.sOff)*D2R,t2=t1+(a[2]-90+C.eOff)*D2R;
+  const d=[Math.sin(az),0,Math.cos(az)],n=[d[2],0,-d[0]];
+  const at=(r,y)=>[d[0]*r,y,C.bz+d[2]*r];
+  const sh=[0,C.hs,C.bz];
+  const el=at(C.l1*Math.sin(t1),C.hs+C.l1*Math.cos(t1));
+  const tip=at(C.l1*Math.sin(t1)+C.l2*Math.sin(t2),C.hs+C.l1*Math.cos(t1)+C.l2*Math.cos(t2));
+  const f=[d[0]*Math.sin(t2),Math.cos(t2),d[2]*Math.sin(t2)];
+  return{sh,el,tip,d,n,f,t1,t2};
+}
+
+// ---- mô phỏng sản phẩm ----
+let items=[],beltOff=0,lastT=0;
+function binPos(){const w=S&&S.wp?S.wp.P4:[140,80,60,130];const k=kin(w);return[k.tip[0],k.tip[2]]}
+function simStep(dt){
+  const s=S;if(!s)return;
+  const carryStg=s.busy&&(s.stg===3||s.stg===4||s.stg===14);
+  const v=s.belt?s.hz*C.cmHz*(s.dir?1:-1):0;
+  const k=kin(A),[bx,bz]=binPos();
+  // sản phẩm tại cảm biến
+  if(s.obj&&!carryStg&&!items.some(i=>i.m==="belt"&&Math.abs(i.x)<PW*1.2))
+    items.push({m:"belt",x:0,y:BT,z:0,h:Math.max(1.5,s.h==null?5:s.h),vy:0,t:0});
+  for(const it of items){
+    if(it.m==="belt"){
+      if(s.obj&&Math.abs(it.x)<PW*1.2){it.x*=1-Math.min(1,dt*8);if(!s.belt&&s.h!=null)it.h+=(Math.max(1.5,s.h)-it.h)*Math.min(1,dt*6)}
+      else it.x+=v*dt;
+      if(carryStg&&Math.abs(it.x)<PW*1.5&&!items.some(o=>o.m==="carry"))it.m="carry";
+      else if(it.x>BX1+PW/2||it.x<BX0-PW/2){it.m="fall";it.vy=0}
+    }
+    if(it.m==="carry"){
+      if(!carryStg){it.m="fall";it.vy=0}
+      else{const q=k.tip;it.x=q[0];it.z=q[2];it.y=q[1]-it.h/2;}
+    }
+    if(it.m==="fall"){
+      it.vy-=980*dt;it.y+=it.vy*dt;
+      const inBin=Math.abs(it.x-bx)<BINW/2-1.2&&Math.abs(it.z-bz)<BINW/2-1.2;
+      const floor=inBin?1:0;
+      if(it.y<=floor){it.y=floor;it.vy=0;it.m=inBin?"bin":"ground";it.t=0}
+    }
+    if(it.m==="ground"){it.t+=dt}
+  }
+  if(carryStg&&!items.some(i=>i.m==="carry")){const q=k.tip;items.push({m:"carry",x:q[0],y:q[1]-2.5,z:q[2],h:5,vy:0,t:0})}
+  items=items.filter(i=>!(i.m==="ground"&&i.t>2));
+  const inb=items.filter(i=>i.m==="bin");if(inb.length>7)items.splice(items.indexOf(inb[0]),1);
+}
+
+const COL={olive:[120,130,72],oliveD:[78,86,48],grey:[150,158,168],dark:[40,52,74],frame:[70,84,112],green:[28,122,82],greenD:[15,77,52],
+  white:[240,244,250],blue:[61,125,224],bin:[220,228,240],binIn:[95,108,128],ground:[34,46,66],acc:[45,226,198],lm:[74,222,128],steel:[190,198,210]};
+
+function build(){
+  F=[];LB=[];LN=[];
+  const s=S,base=s?s.base:16.52,k=kin(A),yT=BT+base;
+  // băng tải
+  if(s&&s.belt)beltOff=(beltOff+s.hz*C.cmHz*(s.dir?1:-1)*dtGlobal+6000)%6;
+  for(let x=BX0;x<BX1;x+=6){const x1=Math.min(x+6,BX1);
+    box(x,BT-3.5,-BW/2,x1,BT-.05,BW/2,COL.dark);
+    box(x,BT-3,-BW/2-1.2,x1,BT+.8,-BW/2,COL.frame);box(x,BT-3,BW/2,x1,BT+.8,BW/2+1.2,COL.frame);
+  }
+  for(let x=BX0-6+beltOff;x<BX1;x+=3){
+    const xa=Math.max(x,BX0),xb=Math.min(x+3,BX1);if(xb-xa<.05)continue;
+    const odd=Math.round((x-BX0+6-beltOff)/3)%2;
+    face([[xa,BT,-BW/2],[xb,BT,-BW/2],[xb,BT,BW/2],[xa,BT,BW/2]],odd?COL.green:COL.greenD,[(xa+xb)/2,BT-1,0]);
+  }
+  for(const x of[BX0+3,BX1-3])for(const z of[-BW/2-.2,BW/2+.2])box(x-1.2,0,z-1.2,x+1.2,BT-3.5,z+1.2,COL.frame);
+  cyl([BX0,BT-1.6,-BW/2],[BX0,BT-1.6,BW/2],1.6,COL.steel);cyl([BX1,BT-1.6,-BW/2],[BX1,BT-1.6,BW/2],1.6,COL.steel);
+  box(BX1+1,BT-5.5,-2.5,BX1+5,BT-1,2.5,COL.dark);
+  label("BĂNG TẢI",[-14,BT+1,BW/2+1],"#8fa4c4");
+
+  // thùng
+  const [bx,bz]=binPos(),h2=BINW/2;
+  box(bx-h2,0,bz-h2,bx+h2,1,bz+h2,COL.bin);
+  box(bx-h2,0,bz-h2,bx+h2,BINH,bz-h2+1,COL.bin);box(bx-h2,0,bz+h2-1,bx+h2,BINH,bz+h2,COL.bin);
+  box(bx-h2,0,bz-h2,bx-h2+1,BINH,bz+h2,COL.bin);box(bx+h2-1,0,bz-h2,bx+h2,BINH,bz+h2,COL.bin);
+  label("THÙNG",[bx,BINH+2,bz+h2],"#c8d3e6");
+
+  // giá cảm biến
+  const pz=BW/2+9;
+  box(-1,0,pz-1,1,yT+4,pz+1,COL.frame);
+  box(-1,yT+2.2,-1.5,1,yT+4,pz+1,COL.frame);
+  box(-2.4,yT,-1.2,2.4,yT+2.2,1.2,COL.blue);
+  for(const dx of[-1.2,1.2])cyl([dx,yT,0],[dx,yT-.9,0],.95,COL.steel,12);
+  label("HC-SR04",[0,yT+6,0],"#7fb8ff");
+  const dm=(s&&s.d!=null)?s.d:base;
+  line3([0,yT-.9,0],[0,yT-.9-Math.max(0,dm-.9),0],s&&s.obj?"#ff5d73":"rgba(255,93,115,.5)",2,!(s&&s.obj));
+  // LM393 (phát - thu hai bên băng tải)
+  const ly=BT+3;
+  box(-1.5,ly-1.5,BW/2+1.2,1.5,ly+1.5,BW/2+3.2,COL.lm);box(-1.5,ly-1.5,-BW/2-3.2,1.5,ly+1.5,-BW/2-1.2,COL.lm);
+  line3([0,ly,BW/2+1.2],[0,ly,-BW/2-1.2],s&&s.obj?"#ff5d73":"rgba(74,222,128,.45)",2,!(s&&s.obj));
+  label("LM393",[0,ly+4,BW/2+2.2],"#8bf0b0");
+
+  // tay máy
+  const sh=k.sh,n=k.n,bz0=C.bz;
+  cyl([0,0,bz0],[0,3,bz0],7.5,COL.oliveD,24);
+  cyl([0,3,bz0],[0,C.hs-3,bz0],4.2,COL.olive,18);
+  obox(sh,n,EY,k.d,3.6,3.4,3.6,COL.oliveD);
+  cyl(sub(sh,mul(n,4.3)),add(sh,mul(n,4.3)),3.1,COL.grey,18);
+  beam(sh,k.el,n,4.4,3.8,COL.olive);
+  cyl(sub(k.el,mul(n,3.2)),add(k.el,mul(n,3.2)),2.6,COL.grey,16);
+  beam(k.el,k.tip,n,3.4,3.0,COL.oliveD);
+  // kẹp
+  const fz=cross(k.f,n),open=Math.max(0,Math.min(1,(130-A[3])/70));
+  const carrying=items.some(i=>i.m==="carry"),gap=(carrying?PW/2+.4:PW/2+.4+4*open);
+  obox(sub(k.tip,mul(k.f,2)),n,fz,k.f,3.2,1.9,1.1,COL.dark);
+  for(const sg of[-1,1])obox(add(add(k.tip,mul(k.f,1)),mul(n,sg*(gap+.4))),n,fz,k.f,.4,1.7,2.6,COL.steel);
+
+  // sản phẩm
+  for(const it of items){
+    const c=[it.x,it.y+it.h/2,it.z];obox(c,EX,EY,EZ,PW/2,it.h/2,PW/2,it.m==="bin"?[200,208,222]:COL.white);
+  }
+}
+
+let dtGlobal=.016;
+function draw(){
+  ctx.clearRect(0,0,W,H);setupCam();build();
+  // lưới sàn
+  ctx.lineWidth=1;ctx.strokeStyle="rgba(45,226,198,.08)";
+  const seg=(a,b)=>{const p=pr(a),q=pr(b);if(!p||!q)return;ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()};
+  for(let x=-60;x<=60;x+=10)seg([x,0,-60],[x,0,45]);
+  for(let z=-60;z<=45;z+=10)seg([-60,0,z],[60,0,z]);
+  // mặt
+  const vis=[];
+  for(const f of F){if(dot(f.n,sub(camPos,f.m))<=0)continue;const d=sub(f.m,camPos);f.d=dot(d,d);vis.push(f)}
+  vis.sort((a,b)=>b.d-a.d);
+  for(const f of vis){
+    const q=f.p.map(pr);if(q.some(v=>!v))continue;
+    const sh=.38+.62*Math.max(0,dot(f.n,LIGHT)),c=`rgb(${f.c[0]*sh|0},${f.c[1]*sh|0},${f.c[2]*sh|0})`;
+    ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();
+    ctx.fillStyle=c;ctx.fill();ctx.strokeStyle=c;ctx.lineWidth=.8;ctx.stroke();
+  }
+  // tia
+  for(const l of LN){const p=pr(l.a),q=pr(l.b);if(!p||!q)continue;
+    ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.setLineDash(l.dash?[5,5]:[]);ctx.lineWidth=l.w;ctx.strokeStyle=l.col;ctx.stroke();ctx.setLineDash([])}
+  // khớp
+  const k=kin(A);
+  for(const [pt,col] of[[k.el,"#2de2c6"],[k.sh,"#2de2c6"]]){const p=pr(add(pt,mul(k.n,4.6)));if(p){ctx.beginPath();ctx.arc(p[0],p[1],Math.max(2,focal*.5/p[2]),0,7);ctx.fillStyle=col;ctx.fill()}}
+  // nhãn
+  ctx.font="600 10px Segoe UI,sans-serif";ctx.textAlign="center";
+  for(const l of LB){const p=pr(l.p);if(!p)continue;const w=ctx.measureText(l.t).width+10;
+    ctx.fillStyle="rgba(8,16,28,.88)";ctx.beginPath();if(ctx.roundRect)ctx.roundRect(p[0]-w/2,p[1]-9,w,16,4);else ctx.rect(p[0]-w/2,p[1]-9,w,16);ctx.fill();
+    ctx.fillStyle=l.col;ctx.fillText(l.t,p[0],p[1]+3)}
+}
+
+/* ---- hình nhỏ: tay máy nhìn nghiêng ---- */
+function drawMini(){
+  const c=$("rb"),x=c.getContext("2d");x.clearRect(0,0,c.width,c.height);
+  const k=Math.min(46,1000/(C.l1+C.l2)),l1=C.l1*k/11*.92,l2=C.l2*k/11*.92,sx=140,sy=118;
+  const t1=(A[1]+C.sOff)*D2R,t2=t1+(A[2]-90+C.eOff)*D2R;
+  const e=[sx+l1*Math.sin(t1),sy-l1*Math.cos(t1)],t=[e[0]+l2*Math.sin(t2),e[1]-l2*Math.cos(t2)];
+  x.strokeStyle="rgba(45,226,198,.35)";x.lineWidth=1.5;x.beginPath();x.ellipse(sx,128,56,8,0,0,7);x.stroke();
+  x.lineCap="round";x.lineWidth=8;
+  x.strokeStyle="#2de2c6";x.beginPath();x.moveTo(sx,sy);x.lineTo(e[0],e[1]);x.stroke();
+  x.strokeStyle="#4da3ff";x.beginPath();x.moveTo(e[0],e[1]);x.lineTo(t[0],t[1]);x.stroke();
+  x.fillStyle="#0a1524";x.strokeStyle="#dce6f5";x.lineWidth=2;
+  for(const p of[[sx,sy],e]){x.beginPath();x.arc(p[0],p[1],5,0,7);x.fill();x.stroke()}
+  const open=Math.max(0,Math.min(1,(130-A[3])/70)),sp=.25+.5*open;
+  x.strokeStyle="#f5b13d";x.lineWidth=3;
+  for(const sg of[-1,1]){const a=t2+sg*sp;x.beginPath();x.moveTo(t[0],t[1]);x.lineTo(t[0]+13*Math.sin(a),t[1]-13*Math.cos(a));x.stroke()}
+}
+
+function frame(ts){
+  dtGlobal=Math.min(.1,(ts-lastT)/1000||.016);lastT=ts;
+  if(S)for(let i=0;i<4;i++)A[i]+=(S.ang[i]-A[i])*Math.min(1,dtGlobal*12);
+  simStep(dtGlobal);draw();drawMini();requestAnimationFrame(frame);
+}
+fit();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
